@@ -1,1 +1,3 @@
-from .diffmahnet import DiffMahFlow, ScalerHolder, gen_time_grids  # noqa: F401
+from .diffmahnet import (  # noqa: F401
+    DiffMahFlow, ScalerHolder, gen_time_grids, log_mah_kern
+)
