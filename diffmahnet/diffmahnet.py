@@ -26,7 +26,7 @@ log_mah_kern = jax.jit(jax.vmap(
     diffmah.diffmah_kernels._log_mah_kern, in_axes=(0, 0, None)))
 
 
-def gen_time_grids(key, t_obs, t_min=0.01, n_tgrid=20):
+def gen_time_grids(key, t_obs, t_min=0.1, n_tgrid=20):
     key1, key2 = jax.random.split(key, 2)
     fixed_tgrid = jnp.linspace(t_min, t_obs, n_tgrid).T
     t_min_dither = jax.random.uniform(
@@ -67,27 +67,33 @@ def make_flatten_and_unflatten_funcs(param_tree):
 
 
 class DiffMahFlow:
-    def __init__(self, scaler, nn_depth=1, nn_block_dim=8, flow_layers=1,
-                 randkey=jax.random.key(0)):
+    def __init__(self, scaler, nn_depth=2, nn_width=50, flow_layers=8,
+                 randkey=None):
         x_dim = scaler.x_scaler.n_features_in_
         cond_dim = scaler.u_scaler.n_features_in_
         self.scaler = scaler
-        self.randkey = randkey
-        self.flow = flowjax.flows.block_neural_autoregressive_flow(
-            key=self.randkey,
+        self.randkey = jax.random.key(0) if randkey is None else randkey
+        # self.flow = flowjax.flows.block_neural_autoregressive_flow(
+        #     key=self.randkey, invert=False,
+        #     base_dist=flowjax.distributions.Normal(jnp.zeros(x_dim)),
+        #     cond_dim=cond_dim, nn_depth=nn_depth,
+        #     nn_block_dim=nn_block_dim, flow_layers=flow_layers
+        # )
+        self.flow = flowjax.flows.masked_autoregressive_flow(
+            key=self.randkey, invert=False,
             base_dist=flowjax.distributions.Normal(jnp.zeros(x_dim)),
             cond_dim=cond_dim, nn_depth=nn_depth,
-            nn_block_dim=nn_block_dim, flow_layers=flow_layers
+            nn_width=nn_width, flow_layers=flow_layers
         )
         self.nn_depth = nn_depth
-        self.nn_block_dim = nn_block_dim
+        self.nn_width = nn_width
         self.flow_layers = flow_layers
         param_tree, self.static = self._partition()
         self.flatten, self.unflatten = make_flatten_and_unflatten_funcs(
             param_tree)
 
     def get_tgrid_and_log_mah(self, m_obs, t_obs, randkey,
-                              t_min=0.01, n_tgrid=20, t0=13.8, extra_shape=()):
+                              t_min=0.1, n_tgrid=20, t0=13.8, extra_shape=()):
         key1, key2 = jax.random.split(randkey)
         u = jnp.array([m_obs, t_obs]).T
         x_sample = self.sample(u, randkey=key1, extra_shape=extra_shape)
@@ -100,11 +106,27 @@ class DiffMahFlow:
         return tgrid, log_mah
 
     def sample(self, condition, randkey=None, extra_shape=()):
-        """Sample **scaled** x from the flow, conditioned on u"""
+        """
+        Sample diffmah u_params, conditioned on (m_obs, t_obs)
+
+        Parameters
+        ----------
+        condition : jnp.ndarray
+            Array of m_obs and t_obs, of shape (n_samples, 2)
+        randkey : jax.random.PRNGKey, optional
+            Random key for reproducibility
+        extra_shape : tuple, optional
+            Extra shape to repeatedly sample for each condition value
+
+        Returns
+        -------
+        jnp.ndarray
+            Sampled unbound params, of shape (n_samples, 5, *extra_shape)
+        """
         condition_scaled = scaler_transform(condition, self.scaler.u_scaler)
         if randkey is None:
             randkey, self.randkey = jax.random.split(self.randkey, 2)
-        x_scaled = eqx.filter_jit(paramax.unwrap(self.flow).sample)(
+        x_scaled = self.flow.sample(
             randkey, extra_shape, condition=condition_scaled)
         return scaler_transform(x_scaled, self.scaler.x_scaler, inverse=True)
 
@@ -117,9 +139,18 @@ class DiffMahFlow:
         self._reset_static()
 
     def save(self, filename):
+        """
+        Save this model object to an eqx file for future use
+
+        Parameters
+        ----------
+        filename : str
+            Filename to save the model to. The ".eqx" extension will be added
+            automatically if not present
+        """
         hyperparams = dict(
             nn_depth=self.nn_depth,
-            nn_block_dim=self.nn_block_dim,
+            nn_width=self.nn_width,
             flow_layers=self.flow_layers,
             **self.scaler.to_dict()
         )
@@ -130,17 +161,34 @@ class DiffMahFlow:
             eqx.tree_serialise_leaves(f, self.flow)
 
     @classmethod
-    def load(cls, filename, randkey=jax.random.key(0)):
+    def load(cls, filename, randkey=None):
+        """
+        Load a pre-trained model from an eqx file
+
+        Parameters
+        ----------
+        filename : str
+            Filename to load the model from. The ".eqx" extension will be
+            added automatically if not present
+        randkey : jax.random.PRNGKey, optional
+            Random key for reproducibility
+
+        Returns
+        -------
+        DiffMahFlow
+            The loaded model
+        """
+        randkey = jax.random.key(0) if randkey is None else randkey
         filename = str(filename).removesuffix(".eqx") + ".eqx"
         with open(filename, "rb") as f:
             hyperparams = json.loads(f.readline().decode())
             hyperparams["nn_depth"] = int(hyperparams["nn_depth"])
-            hyperparams["nn_block_dim"] = int(hyperparams["nn_block_dim"])
+            hyperparams["nn_width"] = int(hyperparams["nn_width"])
             hyperparams["flow_layers"] = int(hyperparams["flow_layers"])
             scaler = ScalerHolder.from_dict(hyperparams)
             self = cls(
                 scaler=scaler, nn_depth=hyperparams["nn_depth"],
-                nn_block_dim=hyperparams["nn_block_dim"],
+                nn_width=hyperparams["nn_width"],
                 flow_layers=hyperparams["flow_layers"], randkey=randkey)
             self.flow = eqx.tree_deserialise_leaves(f, self.flow)
 
@@ -149,7 +197,7 @@ class DiffMahFlow:
 
     def init_fit(self, xtrain, utrain, randkey=None,
                  learning_rate=1e-2, max_patience=10, max_epochs=50):
-        """Train the flow to directly reproduce P(mah_params|m_obs,t_obs)."""
+        """Train the flow directly on P(mah_params|m_obs,t_obs)"""
         x_scaled = scaler_transform(xtrain, self.scaler.x_scaler)
         u_scaled = scaler_transform(utrain, self.scaler.u_scaler)
         if randkey is None:
@@ -202,7 +250,7 @@ class DiffMahFlow:
         for x in gen:
             randkey, key_i = jax.random.split(randkey)
             losses.append(lossfunc_from_params(x, randkey=key_i))
-        return jnp.array(losses)
+        return descent_params, jnp.array(losses)
 
     def _partition(self):
         return eqx.partition(

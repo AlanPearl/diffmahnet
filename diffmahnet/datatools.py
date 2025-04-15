@@ -13,7 +13,7 @@ from diffmah.diffmah_kernels import (
 DEFAULT_MAH_UPARAMS = get_unbounded_mah_params(DEFAULT_MAH_PARAMS)
 
 
-def load_all_tdata(path, is_test=False, is_cens=True):
+def load_all_tdata(path, is_test: bool | str = False, is_cens=True):
     # Parse available training data files
     tdata_files = glob.glob(str(pathlib.Path(path) / "*"))
     filenames = [x.split("/")[-1] for x in tdata_files]
@@ -57,15 +57,17 @@ def load_all_tdata(path, is_test=False, is_cens=True):
 class DataHolder:
     """Holds data for training and testing the flow"""
 
-    def __init__(self, path, is_test=False, is_cens=True, t0=13.8,
-                 sample_frac=1.0):
+    def __init__(self, path, is_test: bool | str = False, is_cens=True,
+                 t0=13.8, sample_frac=1.0, randkey=None):
+        if randkey is None:
+            randkey = jax.random.key(0)
         self.logt0 = np.log10(t0)
         self.x, self.u = load_all_tdata(
             path, is_test=is_test, is_cens=is_cens)
         if sample_frac < 1:
             full_size = self.x.shape[0]
-            sample = np.random.choice(
-                full_size, int(sample_frac * full_size),
+            sample = jax.random.choice(
+                randkey, full_size, (int(sample_frac * full_size),),
                 replace=False)
             self.x = self.x[sample]
             self.u = self.u[sample]
@@ -77,7 +79,7 @@ class DataHolder:
         self.x_scaler = self.scaler.x_scaler
         self.u_scaler = self.scaler.u_scaler
 
-    def get_tgrid_and_log_mah(self, randkey, t_min=0.01, n_tgrid=20):
+    def get_tgrid_and_log_mah(self, randkey, t_min=0.1, n_tgrid=20):
         randkey = jax.random.split(randkey, 2)[1]
         mah_params = get_bounded_mah_params(
             DEFAULT_MAH_UPARAMS._make(self.x.T))
