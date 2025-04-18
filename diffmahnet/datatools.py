@@ -79,6 +79,9 @@ class DataHolder:
         self.x_scaler = self.scaler.x_scaler
         self.u_scaler = self.scaler.u_scaler
 
+        self.diffmahparams = get_bounded_mah_params(
+            DEFAULT_MAH_UPARAMS._make(self.x.T))
+
     def get_tgrid_and_log_mah(self, randkey, t_min=0.1, n_tgrid=20):
         randkey = jax.random.split(randkey, 2)[1]
         mah_params = get_bounded_mah_params(

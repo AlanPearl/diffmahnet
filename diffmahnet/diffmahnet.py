@@ -73,12 +73,6 @@ class DiffMahFlow:
         cond_dim = scaler.u_scaler.n_features_in_
         self.scaler = scaler
         self.randkey = jax.random.key(0) if randkey is None else randkey
-        # self.flow = flowjax.flows.block_neural_autoregressive_flow(
-        #     key=self.randkey, invert=False,
-        #     base_dist=flowjax.distributions.Normal(jnp.zeros(x_dim)),
-        #     cond_dim=cond_dim, nn_depth=nn_depth,
-        #     nn_block_dim=nn_block_dim, flow_layers=flow_layers
-        # )
         self.flow = flowjax.flows.masked_autoregressive_flow(
             key=self.randkey, invert=False,
             base_dist=flowjax.distributions.Normal(jnp.zeros(x_dim)),
@@ -96,16 +90,14 @@ class DiffMahFlow:
                               t_min=0.1, n_tgrid=20, t0=13.8, extra_shape=()):
         key1, key2 = jax.random.split(randkey)
         u = jnp.array([m_obs, t_obs]).T
-        x_sample = self.sample(u, randkey=key1, extra_shape=extra_shape)
-
-        mah_params = get_bounded_mah_params(
-            DEFAULT_MAH_UPARAMS._make(x_sample.T))
+        mah_params = self.sample(
+            u, randkey=key1, extra_shape=extra_shape, asparams=True)
 
         tgrid = gen_time_grids(key2, t_obs, t_min=t_min, n_tgrid=n_tgrid)
         log_mah = log_mah_kern(mah_params, tgrid, np.log10(t0))
         return tgrid, log_mah
 
-    def sample(self, condition, randkey=None, extra_shape=()):
+    def sample(self, condition, randkey=None, extra_shape=(), asparams=False):
         """
         Sample diffmah u_params, conditioned on (m_obs, t_obs)
 
@@ -117,10 +109,12 @@ class DiffMahFlow:
             Random key for reproducibility
         extra_shape : tuple, optional
             Extra shape to repeatedly sample for each condition value
+        asparams : bool, optional
+            If true, return DiffmahParams tuple instead of uparams array
 
         Returns
         -------
-        jnp.ndarray
+        jnp.ndarray | DiffmahParams
             Sampled unbound params, of shape (n_samples, 5, *extra_shape)
         """
         condition_scaled = scaler_transform(condition, self.scaler.u_scaler)
@@ -128,7 +122,13 @@ class DiffMahFlow:
             randkey, self.randkey = jax.random.split(self.randkey, 2)
         x_scaled = self.flow.sample(
             randkey, extra_shape, condition=condition_scaled)
-        return scaler_transform(x_scaled, self.scaler.x_scaler, inverse=True)
+        uparam_array = scaler_transform(
+            x_scaled, self.scaler.x_scaler, inverse=True)
+        if asparams:
+            return get_bounded_mah_params(
+                DEFAULT_MAH_UPARAMS._make(uparam_array.T))
+        else:
+            return uparam_array
 
     def get_params(self):
         param_tree = self._partition()[0]
