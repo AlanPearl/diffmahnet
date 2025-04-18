@@ -2,3 +2,4 @@ numpy
 jax
 tqdm
 flowjax
+diffopt>=1.2

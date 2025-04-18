@@ -4,7 +4,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import flowjax
-import tqdm.auto as tqdm
+# import tqdm.auto as tqdm
 
 import flowjax.distributions
 import flowjax.bijections
@@ -237,20 +237,13 @@ class DiffMahFlow:
         def lossfunc_from_params(flat_params, randkey=randkey):
             self.set_params(flat_params)
             return lossfunc(self, randkey=randkey)
-        descent_params = kdescent.adam(
+        adam_params, adam_losses = kdescent.adam(
             lossfunc_from_params, self.get_params(), nsteps=nsteps,
             progress=progress, randkey=randkey, **kwargs)
-        self.set_params(descent_params[-1])
+        self.set_params(adam_params[-1])
         self.static = self._partition()[1]
-        gen = tqdm.tqdm(descent_params, disable=not progress,
-                        desc="Recomputing losses...")
 
-        randkey, key_i = jax.random.split(randkey)
-        losses = []
-        for x in gen:
-            randkey, key_i = jax.random.split(randkey)
-            losses.append(lossfunc_from_params(x, randkey=key_i))
-        return descent_params, jnp.array(losses)
+        return adam_params, adam_losses
 
     def _partition(self):
         return eqx.partition(
