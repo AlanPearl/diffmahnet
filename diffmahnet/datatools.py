@@ -75,7 +75,7 @@ class DataHolder:
         self.x_dim = self.x.shape[1]
         self.cond_dim = self.u.shape[1]
 
-        self.scaler = diffmahnet.ScalerHolder.compute(self.x, self.u)
+        self.scaler = diffmahnet.Scaler.compute(self.x, self.u)
         self.x_scaler = self.scaler.x_scaler
         self.u_scaler = self.scaler.u_scaler
 

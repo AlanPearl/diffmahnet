@@ -13,7 +13,7 @@ def test_diffmahflow():
     # m_obs and t_obs
     fake_conditions = jax.random.normal(keys[0], (ndata, 2)) + 1.5
     fake_mah_uparams = jax.random.normal(keys[1], (ndata, 5)) * 0.2 - 4.0
-    scaler = diffmahnet.ScalerHolder.compute(
+    scaler = diffmahnet.Scaler.compute(
         fake_mah_uparams, fake_conditions)
 
     flow = diffmahnet.DiffMahFlow(scaler)

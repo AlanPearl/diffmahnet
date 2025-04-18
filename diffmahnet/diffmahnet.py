@@ -185,7 +185,7 @@ class DiffMahFlow:
             hyperparams["nn_depth"] = int(hyperparams["nn_depth"])
             hyperparams["nn_width"] = int(hyperparams["nn_width"])
             hyperparams["flow_layers"] = int(hyperparams["flow_layers"])
-            scaler = ScalerHolder.from_dict(hyperparams)
+            scaler = Scaler.from_dict(hyperparams)
             self = cls(
                 scaler=scaler, nn_depth=hyperparams["nn_depth"],
                 nn_width=hyperparams["nn_width"],
@@ -274,7 +274,7 @@ class _StandardScaler:
         return self.mean_.shape[0]
 
 
-class ScalerHolder:
+class Scaler:
     # Computes and stores scaling objects for X and U
     def __init__(self):
         self.x_scaler = _StandardScaler()

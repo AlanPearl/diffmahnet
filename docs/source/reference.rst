@@ -12,7 +12,7 @@ API Reference
 .. autoclass:: diffmahnet.DiffMahFlow
     :members:
 
-.. autoclass:: diffmahnet.ScalerHolder
+.. autoclass:: diffmahnet.Scaler
     :members:
 
 .. autofunction:: diffmahnet.gen_time_grids
