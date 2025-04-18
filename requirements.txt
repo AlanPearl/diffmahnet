@@ -3,3 +3,4 @@ jax
 tqdm
 flowjax
 diffopt>=1.2
+diffmah @ git+https://github.com/ArgonneCPAC/diffmah@main

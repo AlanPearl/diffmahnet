@@ -8,7 +8,6 @@ dependencies:
   - matplotlib
   - pip:
     - git+https://github.com/ArgonneCPAC/diffmah.git
-    - git+https://github.com/AlanPearl/diffmahnet.git
     - sphinx_rtd_theme
     - nbsphinx
     - ipywidgets
