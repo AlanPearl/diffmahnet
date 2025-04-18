@@ -8,7 +8,8 @@ Welcome to diffmahflow's documentation!
 
 DiffMahFlow is a python package for emulating the
 `diffmah <https://diffmah.readthedocs.io>`__
-model using normalizing flows.
+model using normalizing flows powered by
+`flowjax <https://danielward27.github.io/flowjax/>`__.
 The code is open-source and available on
 `GitHub <https://github.com/AlanPearl/diffmahnet>`__.
 
