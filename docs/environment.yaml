@@ -1,0 +1,17 @@
+name: rtd312
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.12
+  - jupyter
+  - matplotlib
+  - pip:
+    - git+https://github.com/ArgonneCPAC/diffmah.git
+    - sphinx_rtd_theme
+    - nbsphinx
+    - ipywidgets
+    - myst_parser
+    - tqdm
+    - corner
+prefix: /home/apearl/miniconda3/envs/main312
