@@ -49,5 +49,5 @@ Indices and tables
    :caption: Tutorials
    :hidden:
 
-   multigrad/intro.ipynb
+   notebooks/intro.ipynb
 
