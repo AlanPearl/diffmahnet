@@ -23,6 +23,7 @@ Tutorials
 ---------
 
 * :doc:`notebooks/intro`
+* :doc:`notebooks/load_pretrained`
 
 
 Indices and tables
@@ -50,4 +51,5 @@ Indices and tables
    :hidden:
 
    notebooks/intro.ipynb
+   notebooks/load_pretrained.ipynb
 
