@@ -49,6 +49,8 @@ parser.add_argument(
     "--learning-rate", type=float, default=5e-4,
     help="Learning rate for the built-in flowjax optimizer.")
 parser.add_argument(
+    "--max-patience", type=float, default=10.0)
+parser.add_argument(
     "--sample-frac", type=float, default=SAMPLE_FRAC,
     help="Fraction of training data to load.")
 parser.add_argument(
@@ -92,7 +94,8 @@ if __name__ == "__main__":
     if max_epochs > 0:
         print("Training data shapes:", train_data.x.shape, train_data.u.shape)
         flow.init_fit(train_data.x, train_data.u, randkey=key2,
-                      max_epochs=max_epochs, learning_rate=args.learning_rate)
+                      max_epochs=max_epochs, learning_rate=args.learning_rate,
+                      max_patience=args.max_patience)
 
     # Save the trained model
     flow.save(save_dir / save_filename)

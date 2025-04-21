@@ -1,4 +1,6 @@
 import json
+import glob
+import pathlib
 
 import jax
 import jax.numpy as jnp
@@ -24,6 +26,34 @@ DEFAULT_MAH_UPARAMS = get_unbounded_mah_params(DEFAULT_MAH_PARAMS)
 
 log_mah_kern = jax.jit(jax.vmap(
     diffmah.diffmah_kernels._log_mah_kern, in_axes=(0, 0, None)))
+
+pretrained_path = pathlib.Path(__file__).parent / "pretrained_models"
+pretrained_model_names = glob.glob(str(pretrained_path / "*.eqx"))
+pretrained_model_names = [str(pathlib.Path(x).name)
+                          for x in pretrained_model_names]
+
+
+def load_pretrained_model(name):
+    """
+    Load a pretrained model from the diffmahnet package
+
+    Parameters
+    ----------
+    name : str
+        Name of the model to load. Should be one of the following:
+        "diffmahnet_1", "diffmahnet_2", "diffmahnet_3"
+
+    Returns
+    -------
+    DiffMahFlow
+        The loaded model
+    """
+    if name not in pretrained_model_names:
+        raise ValueError(
+            f"{name=} not found. Available models: {pretrained_model_names}")
+
+    filename = pretrained_path / name
+    return DiffMahFlow.load(filename)
 
 
 def gen_time_grids(key, t_obs, t_min=0.1, n_tgrid=20):
@@ -67,6 +97,24 @@ def make_flatten_and_unflatten_funcs(param_tree):
 
 
 class DiffMahFlow:
+    """
+    The primary class within diffmahnet. This class is used to train and
+    from and emulate the diffmahpop model.
+
+    Parameters
+    ----------
+    scaler : Scaler
+        Scaler object to normalize the input data
+    nn_depth : int, optional
+        Depth of the neural network, by default 2
+    nn_width : int, optional
+        Number of hidden layers in the neural network, by default 50
+    flow_layers : int, optional
+        Number of flow layers, by default 8
+    randkey : jax.random.PRNGKey, optional
+        Random key for reproducibility, by default None
+    """
+
     def __init__(self, scaler, nn_depth=2, nn_width=50, flow_layers=8,
                  randkey=None):
         x_dim = scaler.x_scaler.n_features_in_
@@ -97,7 +145,17 @@ class DiffMahFlow:
         log_mah = log_mah_kern(mah_params, tgrid, np.log10(t0))
         return tgrid, log_mah
 
-    def sample(self, condition, randkey=None, extra_shape=(), asparams=False):
+    def make_mc_diffmahnet(self):
+        @jax.jit
+        def mc_diffmahnet(flow_params, lgm_obs, t_obs, ran_key):
+            return self.sample(
+                jnp.array([lgm_obs, t_obs]).T, randkey=ran_key,
+                asparams=True, flow_params=flow_params)
+
+        return mc_diffmahnet
+
+    def sample(self, condition, randkey=None, extra_shape=(), asparams=False,
+               flow_params=None):
         """
         Sample diffmah u_params, conditioned on (m_obs, t_obs)
 
@@ -111,16 +169,23 @@ class DiffMahFlow:
             Extra shape to repeatedly sample for each condition value
         asparams : bool, optional
             If true, return DiffmahParams tuple instead of uparams array
+        flow_params: jnp.ndarray, optional
+            Set the parameters of the flow to this value for sampling
+            (for functional programming instead of object-oriented)
 
         Returns
         -------
         jnp.ndarray | DiffmahParams
             Sampled unbound params, of shape (n_samples, 5, *extra_shape)
         """
+        if flow_params is not None:
+            flow = self._flow_from_flat_params(flow_params)
+        else:
+            flow = self.flow
         condition_scaled = scaler_transform(condition, self.scaler.u_scaler)
         if randkey is None:
             randkey, self.randkey = jax.random.split(self.randkey, 2)
-        x_scaled = self.flow.sample(
+        x_scaled = flow.sample(
             randkey, extra_shape, condition=condition_scaled)
         uparam_array = scaler_transform(
             x_scaled, self.scaler.x_scaler, inverse=True)

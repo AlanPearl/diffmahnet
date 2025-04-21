@@ -3,10 +3,10 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to diffmahflow's documentation!
+Welcome to diffmahnet's documentation!
 ===================================
 
-DiffMahFlow is a python package for emulating the
+DiffMahNet is a python package for emulating the
 `diffmah <https://diffmah.readthedocs.io>`__
 model using normalizing flows powered by
 `flowjax <https://danielward27.github.io/flowjax/>`__.
