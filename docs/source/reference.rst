@@ -7,7 +7,7 @@ API Reference
 .. contents:: Table of Contents
 
 :mod:`diffmahnet`
-================
+=================
 
 .. autoclass:: diffmahnet.DiffMahFlow
     :members:

@@ -4,7 +4,7 @@
    contain the root `toctree` directive.
 
 Welcome to diffmahnet's documentation!
-===================================
+======================================
 
 DiffMahNet is a python package for emulating the
 `diffmah <https://diffmah.readthedocs.io>`__
