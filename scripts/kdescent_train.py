@@ -189,7 +189,7 @@ if __name__ == "__main__":
             loss_func, randkey=key2, nsteps=steps)
         if args.plot_loss_curve:
             import matplotlib.pyplot as plt
-            plt.plot(losses)
+            plt.semilogy(losses)
             plt.xlabel("Iteration")
             plt.ylabel("Loss")
             plot_filename = save_filename.removesuffix(".eqx") + ".png"
