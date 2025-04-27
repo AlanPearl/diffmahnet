@@ -19,6 +19,7 @@ FLOW_LAYERS = 8
 SAMPLE_FRAC = 1.0
 NUM_KERNELS = 20
 NUM_FOURIER_KERNELS = 0
+LEARNING_RATE = 1e-4
 
 
 class KDescentLoss:
@@ -131,6 +132,9 @@ parser.add_argument(
     "--steps", type=int, default=100,
     help="Number of adam iterations.")
 parser.add_argument(
+    "--learning-rate", type=float, default=LEARNING_RATE,
+    help="Initial adam learning rate.")
+parser.add_argument(
     "--num-kernels", type=int, default=NUM_KERNELS,
     help="Number of kdescent kernels.")
 parser.add_argument(
@@ -186,7 +190,8 @@ if __name__ == "__main__":
             train_data, num_kernels=args.num_kernels,
             num_fourier_kernels=args.num_fourier_kernels)
         params, losses = flow.adam_fit(
-            loss_func, randkey=key2, nsteps=steps)
+            loss_func, randkey=key2, nsteps=steps,
+            learning_rate=args.learning_rate)
         if args.plot_loss_curve:
             import matplotlib.pyplot as plt
             plt.semilogy(losses)

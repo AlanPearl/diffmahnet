@@ -275,7 +275,7 @@ class DiffMahFlow:
         return losses
 
     def adam_fit(self, lossfunc, randkey=None, nsteps=100,
-                 progress=True, **kwargs):
+                 progress=True, learning_rate=1e-4, thin=1, **kwargs):
         """Fit the flow using the Adam stochastic gradient descent
 
         Parameters
@@ -289,6 +289,11 @@ class DiffMahFlow:
             Number of Adam steps to perform, by default 100
         progress : bool, optional
             Set false to hide progress bars, by default True
+        learning_rate : float, optional
+            Initial Adam learning rate, by default 1e-4
+        thin : int, optional
+            Return parameters for every `thin` iterations, by default 1. Set
+            `thin=0` to only return final parameters
 
         Returns
         -------
@@ -304,7 +309,8 @@ class DiffMahFlow:
             return lossfunc(self, randkey=randkey)
         adam_params, adam_losses = kdescent.adam(
             lossfunc_from_params, self.get_params(), nsteps=nsteps,
-            progress=progress, randkey=randkey, **kwargs)
+            progress=progress, randkey=randkey, learning_rate=learning_rate,
+            thin=thin, **kwargs)
         self.set_params(adam_params[-1])
         self.static = self._partition()[1]
 
